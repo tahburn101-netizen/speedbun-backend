@@ -154,7 +154,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // ── SETTINGS ──
 app.get('/api/settings', (req, res) => {
-  const rows = db.prepare('SELECT key, value FROM site_settings WHERE key != "admin_pass" AND key != "admin_user"').all();
+  const rows = db.prepare("SELECT key, value FROM site_settings WHERE key NOT IN ('admin_pass', 'admin_user')").all();
   const settings = {};
   rows.forEach(r => settings[r.key] = r.value);
   res.json(settings);
