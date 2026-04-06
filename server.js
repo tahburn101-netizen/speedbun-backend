@@ -3,6 +3,7 @@ const seedCars = require('./seed_cars');
 const cors = require('cors');
 const Database = require('better-sqlite3');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 
@@ -306,7 +307,80 @@ app.post('/api/upload-multiple', requireAdmin, upload.array('images', 20), (req,
   res.json({ ok: true, urls });
 });
 
+// ─── ENQUIRY ─────────────────────────────────────────────────────────────────
+
+function createMailTransporter() {
+  const host = process.env.EMAIL_HOST || process.env.MAIL_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.EMAIL_PORT || '587');
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    host, port,
+    secure: port === 465,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }
+  });
+}
+
+async function sendEnquiryEmail(data) {
+  const transporter = createMailTransporter();
+  if (!transporter) {
+    console.warn('Email not configured — set EMAIL_USER and EMAIL_PASS in Railway env vars');
+    return false;
+  }
+  const { name, email, phone, car, message } = data;
+  const to = process.env.ENQUIRY_EMAIL || 'imi1981@gmail.com';
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f5f8fb;padding:30px;border-radius:12px">
+      <div style="background:#1a4d6b;padding:20px 30px;border-radius:8px 8px 0 0;text-align:center">
+        <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:0.05em">Speed Bun — New Enquiry</h1>
+        <p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:13px">Solihull, Birmingham, UK</p>
+      </div>
+      <div style="background:#fff;padding:28px 30px;border-radius:0 0 8px 8px;border:1px solid #dde8f0;border-top:none">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#666;font-size:13px;width:130px">Name</td>
+              <td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#1a1a2e;font-weight:600">${name || 'N/A'}</td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#666;font-size:13px">Email</td>
+              <td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#1a4d6b;font-weight:600"><a href="mailto:${email}" style="color:#1a4d6b">${email || 'N/A'}</a></td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#666;font-size:13px">Phone</td>
+              <td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#1a1a2e;font-weight:600">${phone || 'N/A'}</td></tr>
+          <tr><td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#666;font-size:13px">Vehicle</td>
+              <td style="padding:10px 0;border-bottom:1px solid #eef2f7;color:#1a1a2e;font-weight:600">${car || 'Not specified'}</td></tr>
+          <tr><td style="padding:10px 0;color:#666;font-size:13px;vertical-align:top">Message</td>
+              <td style="padding:10px 0;color:#1a1a2e">${(message || 'No message provided').replace(/\n/g, '<br>')}</td></tr>
+        </table>
+        <div style="margin-top:24px;padding:16px;background:#f0f7ff;border-radius:8px;border-left:4px solid #1a4d6b">
+          <p style="margin:0;font-size:12px;color:#666">Received: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}</p>
+        </div>
+      </div>
+    </div>
+  `;
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || `"Speed Bun Enquiries" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: `New Enquiry from ${name || 'Website Visitor'} — Speed Bun`,
+      html,
+      text: `New enquiry\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\nVehicle: ${car}\nMessage: ${message}`
+    });
+    console.log('Enquiry email sent to', to);
+    return true;
+  } catch (err) {
+    console.error('Email send failed:', err.message);
+    return false;
+  }
+}
+
+app.post('/api/enquiry', async (req, res) => {
+  const { name, email, phone, car, message } = req.body || {};
+  console.log('Enquiry received:', { name, email, phone, car });
+  const emailSent = await sendEnquiryEmail({ name, email, phone, car, message });
+  res.json({ ok: true, message: 'Enquiry received', emailSent });
+});
+
 // ─── START ────────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`SpeedBun API running on port ${PORT}`);
+  console.log(`Email configured: ${!!(process.env.EMAIL_USER && process.env.EMAIL_PASS)}`);
 });
