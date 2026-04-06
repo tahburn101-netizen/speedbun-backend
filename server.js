@@ -85,7 +85,7 @@ const defaultSettings = {
   ig_url: 'https://www.instagram.com/speedbun?igsh=MWVhZ3pwNHE4anB6cQ%3D%3D&utm_source=qr',
   tt_url: 'https://www.tiktok.com/@speedbuncars?_r=1&_t=ZN-952HaLEF7mI',
   contact_phone: '07891 237204',
-  contact_email: 'tahmid772011@gmail.com',
+  contact_email: 'imi1981@gmail.com',
   contact_address: '16 Primrose Lane, Birmingham, B28 0JJ',
   contact_hours: 'Mon–Fri: 9am–6pm\nSat: 10am–4pm\nSun: Closed',
   admin_user: 'imranadmin',
